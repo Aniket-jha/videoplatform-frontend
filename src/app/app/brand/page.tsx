@@ -1,14 +1,77 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Check, ImagePlus, Palette, Pencil, Plus, Star, Trash2, Type, X } from "lucide-react";
+import { Check, Globe, ImagePlus, Palette, Pencil, Plus, Star, Trash2, Type, X } from "lucide-react";
 import { api, type BrandKit } from "@/lib/api";
 import { Badge, Button, Card, ErrorNote, Input, Label, PageTitle, Select, Spinner } from "@/components/ui";
 
 type Draft = Omit<BrandKit, "id" | "logoUrl" | "watermarkUrl"> & {
   id?: string; logoUrl: string | null; watermarkUrl: string | null;
   logoFile: File | null; watermarkFile: File | null; removeLogo: boolean; removeWatermark: boolean;
+  /** Opened from "Import from website": focus the address field. */
+  importFirst?: boolean;
 };
+
+type Suggestion = {
+  name: string; sourceUrl: string; primaryColor: string; secondaryColor: string; backgroundColor: string; textColor: string;
+  headingFont: string; bodyFont: string; logo: { dataUrl: string; filename: string } | null; notes: string[];
+};
+
+/** "Import from website": the API reads the site; we fill the form for review. */
+function WebsiteImport({ draft, onChange }: { draft: Draft; onChange: (d: Draft) => void }) {
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<{ host: string; notes: string[]; logo: boolean } | null>(null);
+
+  async function run() {
+    if (!url.trim()) return;
+    setBusy(true);
+    setError("");
+    setResult(null);
+    try {
+      const { suggestion: s } = await api<{ suggestion: Suggestion }>("/brand/import", { method: "POST", json: { url } });
+      let logoFile: File | null = null;
+      if (s.logo) {
+        const blob = await fetch(s.logo.dataUrl).then((r) => r.blob());
+        logoFile = new File([blob], s.logo.filename, { type: blob.type });
+      }
+      onChange({
+        ...draft,
+        // Keep a name the user already typed.
+        name: !draft.id && (draft.name === "My brand" || !draft.name.trim()) ? s.name : draft.name,
+        primaryColor: s.primaryColor, secondaryColor: s.secondaryColor, backgroundColor: s.backgroundColor, textColor: s.textColor,
+        headingFont: s.headingFont, bodyFont: s.bodyFont,
+        ...(logoFile ? { logoFile, removeLogo: false } : {}),
+        importFirst: false,
+      });
+      setResult({ host: new URL(s.sourceUrl).hostname.replace(/^www\./, ""), notes: s.notes, logo: !!logoFile });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4">
+      <h3 className="flex items-center gap-2 text-sm font-semibold"><Globe className="size-4 text-brand" /> Import from website</h3>
+      <p className="mt-0.5 text-xs text-muted">We read your site&apos;s colours, fonts, name and logo and fill in the kit. You can change anything before saving.</p>
+      <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); void run(); }}>
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="yourcompany.com" autoFocus={draft.importFirst} inputMode="url" autoComplete="url" aria-label="Website address" />
+        <Button type="submit" loading={busy} disabled={!url.trim()} className="shrink-0">Import</Button>
+      </form>
+      {busy && <p className="mt-2 text-xs text-muted">Reading the site… this takes a few seconds.</p>}
+      {error && <div className="mt-3"><ErrorNote>{error}</ErrorNote></div>}
+      {result && (
+        <div className="mt-3 rounded-xl bg-white p-3 text-xs">
+          <p className="flex items-center gap-1.5 font-medium text-emerald-700"><Check className="size-3.5" /> Imported from {result.host}{result.logo ? " · logo found" : " · no logo found, upload one below"}</p>
+          {result.notes.map((n) => <p key={n} className="mt-1 text-muted">• {n}</p>)}
+        </div>
+      )}
+    </section>
+  );
+}
 
 const PRESETS = [
   { name: "Reel Indigo", primaryColor: "#4f22d8", secondaryColor: "#22d3ee", backgroundColor: "#0f0b2e", textColor: "#ffffff" },
@@ -23,6 +86,9 @@ const blank = (): Draft => ({
   logoUrl: null, logoPosition: "top-right", watermarkUrl: null, watermarkText: "", watermarkOpacity: 0.35,
   logoFile: null, watermarkFile: null, removeLogo: false, removeWatermark: false,
 });
+
+// An imported Google Font may be outside the suggested list; keep it selectable.
+const withFont = (fonts: string[], current: string) => (fonts.includes(current) ? fonts : [current, ...fonts]);
 
 /** Loads Google Fonts so previews show the real typefaces. */
 function useGoogleFonts(families: string[]) {
@@ -87,7 +153,12 @@ export default function BrandPage() {
         <PageTitle
           title="Brand Kits"
           text="Lock in your colours, fonts, logo and watermark. Every video uses your default kit unless you pick another."
-          action={!draft && <Button onClick={() => setDraft(blank())}><Plus className="size-4" /> New brand kit</Button>}
+          action={!draft && (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => setDraft({ ...blank(), importFirst: true })}><Globe className="size-4" /> Import from website</Button>
+              <Button onClick={() => setDraft(blank())}><Plus className="size-4" /> New brand kit</Button>
+            </div>
+          )}
         />
       </Card>
 
@@ -145,6 +216,7 @@ function Editor({ draft, fonts, onChange, onCancel, onSave, busy, error }: {
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_1.1fr]">
       <Card className="space-y-6 p-5 sm:p-6">
+        <WebsiteImport draft={draft} onChange={onChange} />
         <div><Label>Kit name</Label><Input value={draft.name} onChange={(e) => set({ name: e.target.value })} /></div>
 
         <section>
@@ -174,8 +246,8 @@ function Editor({ draft, fonts, onChange, onCancel, onSave, busy, error }: {
         <section>
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Type className="size-4 text-brand" /> Fonts</h3>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Headings</Label><Select value={draft.headingFont} onChange={(e) => set({ headingFont: e.target.value })} style={{ fontFamily: draft.headingFont }}>{fonts.map((f) => <option key={f}>{f}</option>)}</Select></div>
-            <div><Label>Body & captions</Label><Select value={draft.bodyFont} onChange={(e) => set({ bodyFont: e.target.value })} style={{ fontFamily: draft.bodyFont }}>{fonts.map((f) => <option key={f}>{f}</option>)}</Select></div>
+            <div><Label>Headings</Label><Select value={draft.headingFont} onChange={(e) => set({ headingFont: e.target.value })} style={{ fontFamily: draft.headingFont }}>{withFont(fonts, draft.headingFont).map((f) => <option key={f}>{f}</option>)}</Select></div>
+            <div><Label>Body & captions</Label><Select value={draft.bodyFont} onChange={(e) => set({ bodyFont: e.target.value })} style={{ fontFamily: draft.bodyFont }}>{withFont(fonts, draft.bodyFont).map((f) => <option key={f}>{f}</option>)}</Select></div>
           </div>
         </section>
 
