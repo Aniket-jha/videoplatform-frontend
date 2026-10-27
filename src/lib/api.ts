@@ -1,6 +1,6 @@
 export type User = { id: string; email: string; name: string; plan: PlanId; creditsSeconds: number };
 export type PlanId = "free" | "basic" | "pro" | "cinematic";
-export type Style = "motion" | "avatar" | "hybrid" | "cinematic" | "voiceover";
+export type Style = "motion" | "avatar" | "hybrid" | "cinematic" | "voiceover" | "demo";
 export type Category = "educational" | "corporate" | "informational" | "social";
 /** text = motion graphics only; images = motion graphics with photos; visual = full-screen photos/footage. */
 export type Look = "text" | "images" | "visual";
@@ -18,6 +18,8 @@ export type Meta = {
   integrations: Record<"claude" | "elevenlabs" | "macSay" | "neuralVoice" | "pexels" | "heygen" | "veo" | "fal" | "openai" | "gemini" | "stripe", boolean>;
   /** Active AI generators (null when none is configured). */
   providers: { image: string | null; video: string | null };
+  /** "Motion graphics + images": pictures per minute and the price of each AI one (charged only when `charged`). */
+  images: { perMinute: number; priceUsd: number; credits: number; charged: boolean };
 };
 
 export type Script = { title: string; summary: string; sections: { heading: string; narration: string }[] };

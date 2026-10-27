@@ -113,7 +113,7 @@ function SceneInspector({ doc, commit, projectId, voice, index, onSelect }: Comm
               ? <video src={media.url} muted loop autoPlay playsInline className="aspect-video w-full object-cover" />
               // eslint-disable-next-line @next/next/no-img-element
               : <img src={media.url} alt="" className="aspect-video w-full object-cover" />}
-            <button onClick={() => set({ imageUrl: null, brollUrl: null })} className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-black/60 text-white" aria-label="Remove media"><X className="size-4" /></button>
+            <button onClick={() => set({ imageUrl: null, brollUrl: null, gallery: undefined })} className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-black/60 text-white" aria-label="Remove media"><X className="size-4" /></button>
           </div>
         ) : <p className="text-sm text-muted">No image. This scene shows motion graphics only.</p>}
         <Button size="sm" variant="secondary" onClick={() => setPicker(true)}><ImageIcon className="size-4" /> {media ? "Replace" : "Add image or clip"}</Button>

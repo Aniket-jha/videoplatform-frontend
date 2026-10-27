@@ -1,6 +1,6 @@
 // Synced from the backend repo (remotion/) by scripts/sync-remotion.mjs. Edit it there.
 import React from "react";
-import { AbsoluteFill, Img, Video, interpolate, spring, useCurrentFrame, useVideoConfig, Easing } from "remotion";
+import { AbsoluteFill, Img, Sequence, Video, interpolate, spring, useCurrentFrame, useVideoConfig, Easing } from "remotion";
 import type { Visual } from "../types";
 import type { Theme } from "../theme";
 import { formatNumber } from "../theme";
@@ -23,14 +23,42 @@ export const KenBurns: React.FC<{ src: string; isVideo: boolean; seed: number; s
   );
 };
 
+/** Several stills in turn, each with its own Ken Burns move, cross-fading into the next. */
+export const Slides: React.FC<{ srcs: string[]; isVideo: boolean; seed: number }> = ({ srcs, isVideo, seed }) => {
+  const { durationInFrames } = useVideoConfig();
+  if (isVideo || srcs.length < 2) return <KenBurns src={srcs[0]} isVideo={isVideo} seed={seed} />;
+  const each = Math.floor(durationInFrames / srcs.length);
+  const fade = Math.min(15, Math.floor(each / 3));
+  return (
+    <>
+      {srcs.map((src, k) => {
+        const from = k * each;
+        const len = k === srcs.length - 1 ? durationInFrames - from : each + fade;
+        return (
+          <Sequence key={k} from={from} durationInFrames={len} layout="none">
+            <FadeIn frames={k ? fade : 0}><KenBurns src={src} isVideo={false} seed={seed + k} /></FadeIn>
+          </Sequence>
+        );
+      })}
+    </>
+  );
+};
+
+const FadeIn: React.FC<{ frames: number; children: React.ReactNode }> = ({ frames, children }) => {
+  const frame = useCurrentFrame();
+  const o = frames ? interpolate(frame, [0, frames], [0, 1], { extrapolateRight: "clamp" }) : 1;
+  return <div style={{ position: "absolute", inset: 0, opacity: o }}>{children}</div>;
+};
+
 const onImage = (theme: Theme): Theme => ({
   ...theme, text: "#ffffff", muted: "rgba(255,255,255,0.82)", card: "rgba(255,255,255,0.12)", cardBorder: "rgba(255,255,255,0.22)",
 });
 
 /** "Motion graphics + images": a photo frame beside the animated content; title/closing go full-bleed. */
-export const ImageLayout: React.FC<{ visual: Visual; theme: Theme; src: string; isVideo: boolean; index: number; portrait: boolean; reserveBottom: number }> = ({
-  visual, theme, src, isVideo, index, portrait, reserveBottom,
+export const ImageLayout: React.FC<{ visual: Visual; theme: Theme; src: string; gallery?: string[]; isVideo: boolean; index: number; portrait: boolean; reserveBottom: number }> = ({
+  visual, theme, src, gallery, isVideo, index, portrait, reserveBottom,
 }) => {
+  const srcs = [src, ...(gallery ?? [])];
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = spring({ frame: frame - 4, fps, config: { damping: 200, mass: 0.7 } });
@@ -39,7 +67,7 @@ export const ImageLayout: React.FC<{ visual: Visual; theme: Theme; src: string; 
   if (fullBleed) {
     return (
       <AbsoluteFill>
-        <KenBurns src={src} isVideo={isVideo} seed={index} />
+        <Slides srcs={srcs} isVideo={isVideo} seed={index} />
         <AbsoluteFill style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0.15) 100%)" }} />
         <AbsoluteFill style={{ padding: portrait ? `200px 70px ${reserveBottom}px` : `110px 160px ${reserveBottom}px`, justifyContent: "center" }}>
           <SceneVisual visual={visual} theme={onImage(theme)} />
@@ -56,12 +84,12 @@ export const ImageLayout: React.FC<{ visual: Visual; theme: Theme; src: string; 
   if (portrait) {
     return (
       <AbsoluteFill style={{ padding: `130px 60px ${reserveBottom}px`, gap: 50 }}>
-        <div style={{ ...frameStyle, height: "40%", flexShrink: 0 }}><KenBurns src={src} isVideo={isVideo} seed={index} /></div>
+        <div style={{ ...frameStyle, height: "40%", flexShrink: 0 }}><Slides srcs={srcs} isVideo={isVideo} seed={index} /></div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}><SceneVisual visual={visual} theme={theme} /></div>
       </AbsoluteFill>
     );
   }
-  const image = <div style={{ ...frameStyle, flex: "0 0 40%", height: "100%" }}><KenBurns src={src} isVideo={isVideo} seed={index} /></div>;
+  const image = <div style={{ ...frameStyle, flex: "0 0 40%", height: "100%" }}><Slides srcs={srcs} isVideo={isVideo} seed={index} /></div>;
   const content = <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}><SceneVisual visual={visual} theme={theme} /></div>;
   return (
     <AbsoluteFill style={{ padding: `110px 110px ${reserveBottom}px`, flexDirection: "row", gap: 80, alignItems: "stretch" }}>

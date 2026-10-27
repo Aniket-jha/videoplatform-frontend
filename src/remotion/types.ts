@@ -29,7 +29,19 @@ export const VisualSchema = z.object({
 });
 export type Visual = z.infer<typeof VisualSchema>;
 
-export const SceneSchema = z.object({
+/** Product demo: which part of the uploaded recording a scene shows, and where it zooms. */
+export const DemoShotSchema = z.object({
+  start: z.number(), // seconds into the recording
+  end: z.number(),
+  focusX: z.number(), // 0–1 across the recording; the zoom and callout centre here
+  focusY: z.number(),
+  zoom: z.number(), // 1 = whole screen, up to ~2.2
+  callout: z.string().nullable(), // short label pinned at the focus point
+});
+export type DemoShot = z.infer<typeof DemoShotSchema>;
+
+// What the storyboard writer fills in for each scene.
+export const WriterSceneSchema = z.object({
   id: z.string(),
   narration: z.string(),
   visual: VisualSchema,
@@ -38,6 +50,9 @@ export const SceneSchema = z.object({
   // 2–4 word stock-photo search for image-based formats
   imageQuery: z.string().nullable(),
 });
+export const WriterStoryboardSchema = z.object({ scenes: z.array(WriterSceneSchema) });
+
+export const SceneSchema = WriterSceneSchema.extend({ demo: DemoShotSchema.nullable().optional() });
 export type Scene = z.infer<typeof SceneSchema>;
 
 export const StoryboardSchema = z.object({ scenes: z.array(SceneSchema) });
@@ -59,6 +74,8 @@ export type RenderScene = Scene & {
   brollUrl: string | null;
   avatarUrl: string | null;
   imageUrl: string | null;
+  // More pictures shown one after another after imageUrl ("motion graphics + images" scenes)
+  gallery?: string[];
   // Editor overrides (all optional; defaults come from the video-level settings)
   transition?: Transition;
   layout?: "auto" | "text" | "images" | "visual";
@@ -87,6 +104,9 @@ export type RenderBrand = {
   watermarkUrl: string | null; watermarkText: string | null; watermarkOpacity: number;
 };
 
+/** The product recording a demo is built from (transcoded to H.264). */
+export type DemoSource = { src: string; duration: number; width: number; height: number; product: string };
+
 export type RenderProps = {
   title: string;
   theme: string;
@@ -105,4 +125,5 @@ export type RenderProps = {
   narrationVolume?: number;
   captionStyle?: "bar" | "karaoke" | "minimal" | null;
   transition?: Transition;
+  demo?: DemoSource | null;
 };

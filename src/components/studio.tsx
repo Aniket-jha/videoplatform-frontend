@@ -13,7 +13,7 @@ import {
 import { useSession } from "./session";
 import { Button, ErrorNote, Label, Select } from "./ui";
 import { ProjectCard } from "./project-card";
-import { CATEGORIES, FORMATS, PRESETS, categoryLabel, formatLabel, formatOf } from "@/lib/video-options";
+import { CATEGORIES, FORMATS, PRESETS, categoryLabel, estimateCredits, formatLabel, formatOf, imagesFor } from "@/lib/video-options";
 import { isWorking } from "./status";
 
 // The three video types the product offers.
@@ -150,7 +150,7 @@ export function Studio({ mode, chatId }: { mode: ChatMode; chatId?: string }) {
     const d = CATEGORIES.find((c) => c.id === category)!.defaults;
     changeSettings({ ...d, category, targetSeconds: Math.min(d.targetSeconds ?? settings.targetSeconds, plan.maxVideoSeconds) });
   };
-  const credits = Math.ceil(settings.targetSeconds * meta.styles[settings.style].multiplier);
+  const credits = estimateCredits(meta, settings);
 
   async function send() {
     const body = text.trim();
@@ -293,7 +293,11 @@ export function Studio({ mode, chatId }: { mode: ChatMode; chatId?: string }) {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold">Your images <span className="font-normal text-muted">(optional)</span></p>
-                      <p className="text-xs text-muted">Used first in the scenes; stock photos fill the rest. Up to {MAX_IMAGES}.</p>
+                      <p className="text-xs text-muted">
+                        {settings.look === "images"
+                          ? `This video uses ${imagesFor(meta, settings.targetSeconds)} images (${meta.images?.perMinute ?? 6} per minute). Yours go first; ${meta.images?.charged ? `AI fills the rest at $${meta.images.priceUsd.toFixed(2)} (${meta.images.credits} credits) each` : "stock photos fill the rest"}.`
+                          : `Used first in the scenes; stock photos fill the rest. Up to ${MAX_IMAGES}.`}
+                      </p>
                     </div>
                     <Button size="sm" variant="secondary" onClick={() => imagesRef.current?.click()} disabled={images.length >= MAX_IMAGES}><ImagePlus className="size-4" /> Add images</Button>
                   </div>
@@ -446,7 +450,11 @@ export function Studio({ mode, chatId }: { mode: ChatMode; chatId?: string }) {
 const kitLabel = (id: string | null, kits: BrandKit[]) =>
   id === "none" ? "No brand kit" : (kits.find((k) => k.id === id) ?? kits.find((k) => k.isDefault))?.name ?? "No brand kit";
 
-type SettingsProps = { settings: ChatSettings; kits: BrandKit[]; onChange: (p: Partial<ChatSettings>) => void; maxSeconds: number };
+type SettingsProps = {
+  settings: ChatSettings; kits: BrandKit[]; onChange: (p: Partial<ChatSettings>) => void; maxSeconds: number;
+  /** Product demo: no visual-format picker, and an "Auto" style that follows the references. */
+  demo?: boolean;
+};
 
 function SettingsPanel({ onClose, ...props }: SettingsProps & { onClose: () => void }) {
   return (
@@ -473,14 +481,14 @@ function usePresetFonts() {
   }, []);
 }
 
-function SettingsFields({ settings, kits, onChange, maxSeconds }: SettingsProps) {
+export function SettingsFields({ settings, kits, onChange, maxSeconds, demo }: SettingsProps) {
   usePresetFonts();
   const { user, meta } = useSession();
   const plan = meta.plans[user.plan];
   const format = formatOf(settings);
   return (
       <div className="space-y-5">
-        <div>
+        {!demo && <div>
           <Label>Visual format</Label>
           <div className="grid gap-1.5">
             {FORMATS.map((f) => {
@@ -496,16 +504,26 @@ function SettingsFields({ settings, kits, onChange, maxSeconds }: SettingsProps)
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className={clsx("block text-sm font-medium", on && "text-brand")}>{f.label}</span>
-                    <span className="block truncate text-xs text-muted">{locked ? `${meta.plans[meta.styles[f.style].minPlan].name} plan` : f.text}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {locked ? `${meta.plans[meta.styles[f.style].minPlan].name} plan`
+                        : f.id === "images" && meta.images ? `${meta.images.perMinute} images/min${meta.images.charged ? ` · $${meta.images.priceUsd.toFixed(2)} per AI image` : ""}` : f.text}
+                    </span>
                   </span>
                 </button>
               );
             })}
           </div>
-        </div>
+        </div>}
         <div>
           <Label hint={kits.length ? "Brand kit colours override" : undefined}>Style</Label>
           <div className="grid grid-cols-3 gap-2">
+            {demo && (
+              <button onClick={() => onChange({ preset: "auto" })} aria-pressed={settings.preset === "auto"}
+                className={clsx("overflow-hidden rounded-xl border text-left transition", settings.preset === "auto" ? "border-brand ring-2 ring-brand/20" : "border-line hover:border-line-strong")}>
+                <div className="bg-brand-gradient flex h-12 items-center justify-center"><Sparkles className="size-5 text-white" /></div>
+                <span className={clsx("block px-2 py-1 text-xs font-medium", settings.preset === "auto" && "text-brand")}>Auto</span>
+              </button>
+            )}
             {PRESETS.map((p) => (
               <button key={p.id} onClick={() => onChange({ preset: p.id })} aria-pressed={settings.preset === p.id}
                 className={clsx("overflow-hidden rounded-xl border text-left transition", settings.preset === p.id ? "border-brand ring-2 ring-brand/20" : "border-line hover:border-line-strong")}>

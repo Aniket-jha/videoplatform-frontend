@@ -1,6 +1,6 @@
 import { BarChart3, Briefcase, Clapperboard, Film, GraduationCap, ImageIcon, Info, Smartphone, UserRound } from "lucide-react";
 import type { ElementType } from "react";
-import type { Category, ChatSettings, Look, Style } from "./api";
+import type { Category, ChatSettings, Look, Meta, Style } from "./api";
 
 export const CATEGORIES: { id: Category; label: string; icon: ElementType; text: string; defaults: Partial<ChatSettings> }[] = [
   { id: "educational", label: "Educational", icon: GraduationCap, text: "Teach step by step with examples and a recap.", defaults: { preset: "playful", aspect: "16:9", targetSeconds: 90 } },
@@ -30,4 +30,15 @@ export const PRESETS: { id: string; label: string; bg: string; accent: string; a
   { id: "minimal", label: "Minimal", bg: "#ffffff", accent: "#111827", accent2: "#6b7280", text: "#111827", font: "DM Sans", radius: 0 },
 ];
 export const categoryLabel = (c?: string) => CATEGORIES.find((x) => x.id === c)?.label ?? "Informational";
-export const formatLabel = (style: Style, look?: Look) => FORMATS.find((f) => f.id === formatOf({ style, look: look ?? "text" }))?.label ?? "Motion graphics";
+export const formatLabel = (style: Style, look?: Look) =>
+  style === "demo" ? "Product demo" : FORMATS.find((f) => f.id === formatOf({ style, look: look ?? "text" }))?.label ?? "Motion graphics";
+
+/** Pictures in a "motion graphics + images" video (mirrors the server's imagesFor). */
+export const imagesFor = (meta: Meta, seconds: number) => Math.max(1, Math.round((seconds / 60) * (meta.images?.perMinute ?? 6)));
+
+/** Credits a video will use: its seconds × the style's rate, plus each AI image for "motion graphics + images". */
+export function estimateCredits(meta: Meta, s: Pick<ChatSettings, "style" | "look" | "targetSeconds">) {
+  const base = Math.ceil(s.targetSeconds * meta.styles[s.style].multiplier);
+  const images = s.style === "motion" && s.look === "images" && meta.images?.charged ? imagesFor(meta, s.targetSeconds) * meta.images.credits : 0;
+  return base + images;
+}

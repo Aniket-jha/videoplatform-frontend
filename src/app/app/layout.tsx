@@ -3,15 +3,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
-import { CreditCard, Images, LogOut, Menu, MessageSquare, MessagesSquare, Palette, Plus, Settings2, Wrench, X, Zap } from "lucide-react";
+import { CreditCard, Images, LogOut, Menu, MessageSquare, MessagesSquare, MonitorPlay, Palette, Plus, Settings2, Wrench, X, Zap } from "lucide-react";
 import { SessionProvider, useSession } from "@/components/session";
 import { Button, Logo } from "@/components/ui";
 import { api, CHATS_CHANGED, type ChatSummary } from "@/lib/api";
 
-// The three ways to make a video, then the workspace pages.
+// The ways to make a video, then the workspace pages.
 const create = [
   { href: "/app/direct", label: "Direct Video", icon: Zap },
   { href: "/app/diy", label: "DIY Video", icon: Wrench },
+  { href: "/app/demo", label: "Product Demo", icon: MonitorPlay },
   { href: "/app/chat", label: "Chat", icon: MessagesSquare },
 ];
 const nav = [

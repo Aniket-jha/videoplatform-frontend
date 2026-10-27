@@ -7,6 +7,7 @@ import { PRESETS, type Preset } from "./presets";
 import { SceneVisual } from "./scenes/Visuals";
 import { Background, Captions, KineticWords, Presenter } from "./scenes/Chrome";
 import { ImageLayout, VisualLayout } from "./scenes/Media";
+import { DemoLayout } from "./scenes/Demo";
 
 export const FPS = 30;
 
@@ -158,12 +159,14 @@ const SceneShell: React.FC<{ scene: RenderScene; theme: Theme; props: RenderProp
     : captionStyle === "karaoke" ? (portrait ? 620 : 300) : portrait ? 420 : 190;
 
   let content: React.ReactNode;
-  if (props.style === "voiceover") {
+  if (scene.demo && props.demo) {
+    content = <DemoLayout visual={scene.visual} shot={scene.demo} source={props.demo} theme={theme} index={index} portrait={portrait} reserveBottom={reserveBottom} />;
+  } else if (props.style === "voiceover") {
     content = <KineticWords text={scene.narration} eyebrow={scene.visual.type === "title" ? null : scene.visual.heading} theme={theme} portrait={portrait} />;
   } else if (media && look === "visual") {
     content = <VisualLayout visual={scene.visual} theme={theme} src={media.src} isVideo={media.isVideo} index={index} portrait={portrait} reserveBottom={reserveBottom} />;
   } else if (media && look === "images" && !showPresenter) {
-    content = <ImageLayout visual={scene.visual} theme={theme} src={media.src} isVideo={media.isVideo} index={index} portrait={portrait} reserveBottom={reserveBottom} />;
+    content = <ImageLayout visual={scene.visual} theme={theme} src={media.src} gallery={media.isVideo ? undefined : scene.gallery} isVideo={media.isVideo} index={index} portrait={portrait} reserveBottom={reserveBottom} />;
   } else {
     content = (
       <AbsoluteFill

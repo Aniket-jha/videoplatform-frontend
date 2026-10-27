@@ -17,7 +17,7 @@ export function ProjectCard({ p, onChanged }: { p: ChatProject; onChanged: () =>
         <div className="bg-brand-gradient grid size-9 shrink-0 place-items-center rounded-xl"><Film className="size-4 text-white" /></div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{p.title}</p>
-          <p className="text-xs text-muted">{p.mode === "direct" ? "Direct" : "DIY"} · {categoryLabel(p.category)} · {formatLabel(p.style, p.look)} · {p.aspect}</p>
+          <p className="text-xs text-muted">{p.mode === "direct" ? "Direct" : "DIY"} · {p.style === "demo" ? "" : `${categoryLabel(p.category)} · `}{formatLabel(p.style, p.look)} · {p.aspect}</p>
         </div>
         <StatusBadge status={p.status} />
       </div>
